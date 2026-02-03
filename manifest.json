@@ -2,7 +2,7 @@
   "name": "Card Snap - Trading Card Photo Combiner",
   "short_name": "Card Snap",
   "description": "Capture and combine trading card photos",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0f0c29",
   "theme_color": "#0f0c29",
