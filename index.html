@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Card Snap">
+  <meta name="theme-color" content="#0f0c29">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <title>Card Snap - Trading Card Photo Combiner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      color: #fff;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+    
+    .app {
+      height: 100vh;
+      height: -webkit-fill-available;
+      display: flex;
+      flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    
+    .header {
+      text-align: center;
+      padding: 15px;
+      flex-shrink: 0;
+    }
+    
+    .title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 900;
+      background: linear-gradient(90deg, #e94560, #f39c12, #e94560);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 3s linear infinite;
+    }
+    
+    @keyframes shimmer {
+      to { background-position: 200% center; }
+    }
+    
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 15px 15px;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Camera View */
+    .camera-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .camera-header {
+      padding: 15px;
+      padding-top: calc(15px + env(safe-area-inset-top));
+      background: rgba(0,0,0,0.7);
+      text-align: center;
+      z-index: 10;
+    }
+    
+    .photo-prompt {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.4rem;
+      color: #f39c12;
+      margin-bottom: 5px;
+    }
+    
+    .photo-count {
+      font-size: 0.9rem;
+      color: #8892b0;
+    }
+    
+    .photo-hint {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    
+    .camera-preview {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .camera-preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .camera-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      aspect-ratio: 5/7;
+      border: 3px solid rgba(233, 69, 96, 0.7);
+      border-radius: 12px;
+      pointer-events: none;
+    }
+    
+    .corner-guide {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 3px solid #f39c12;
+    }
+    
+    .corner-tl { top: 10%; left: 10%; border-right: none; border-bottom: none; }
+    .corner-tr { top: 10%; right: 10%; border-left: none; border-bottom: none; }
+    .corner-bl { bottom: 10%; left: 10%; border-right: none; border-top: none; }
+    .corner-br { bottom: 10%; right: 10%; border-left: none; border-top: none; }
+    
+    .camera-controls {
+      padding: 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+    }
+    
+    .capture-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid #e94560;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    
+    .capture-btn:active {
+      transform: scale(0.9);
+    }
+    
+    .cancel-btn, .skip-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    /* Main UI */
+    .start-section {
+      text-align: center;
+      padding: 30px 0;
+    }
+    
+    .start-btn {
+      background: linear-gradient(135deg, #e94560, #c73e54);
+      color: white;
+      border: none;
+      padding: 18px 40px;
+      border-radius: 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 20px rgba(233, 69, 96, 0.5);
+      cursor: pointer;
+    }
+    
+    .start-btn:active {
+      transform: scale(0.98);
+    }
+    
+    .instructions {
+      margin-top: 20px;
+      color: #8892b0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    
+    /* Progress */
+    .progress-section {
+      margin: 20px 0;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #e94560, #f39c12);
+      transition: width 0.3s ease;
+    }
+    
+    .progress-text {
+      text-align: center;
+      color: #8892b0;
+      font-size: 0.9rem;
+    }
+    
+    /* Photo Grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin: 20px 0;
+    }
+    
+    .photo-slot {
+      aspect-ratio: 5/7;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      background: rgba(255,255,255,0.05);
+      border: 2px dashed #3d3d5c;
+    }
+    
+    .photo-slot.filled {
+      border: 2px solid #e94560;
+    }
+    
+    .photo-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .photo-slot .slot-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0,0,0,0.7);
+      font-size: 0.6rem;
+      padding: 3px;
+      text-align: center;
+      color: #aaa;
+    }
+    
+    .photo-slot.filled .slot-label {
+      color: #e94560;
+    }
+    
+    .photo-slot .slot-number {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: rgba(0,0,0,0.6);
+      color: #e94560;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.6rem;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+    
+    .photo-slot .retake-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(233, 69, 96, 0.9);
+      border: none;
+      color: white;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .photo-slot.filled:hover .retake-btn,
+    .photo-slot.filled:active .retake-btn {
+      opacity: 1;
+    }
+    
+    /* Action Buttons */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    
+    .btn {
+      padding: 15px 25px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #e94560, #c73e54);
+      color: white;
+      box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #00b894, #00a085);
+      color: white;
+      box-shadow: 0 4px 15px rgba(0, 184, 148, 0.4);
+    }
+    
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 2px solid #8892b0;
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+    }
+    
+    /* Result */
+    .result-section {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    .result-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.3rem;
+      color: #00b894;
+      margin-bottom: 15px;
+    }
+    
+    .result-image {
+      max-width: 100%;
+      border-radius: 10px;
+      border: 3px solid #e94560;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    
+    .hidden { display: none !important; }
+    
+    /* Loading spinner */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app"></div>
+  
+  <script>
+    const PHOTO_TYPES = [
+      { id: 'front', label: 'Front', hint: 'Take a photo of the full front of the card' },
+      { id: 'front-tl', label: 'Front Top Left', hint: 'Focus on the top-left corner of the front' },
+      { id: 'front-tr', label: 'Front Top Right', hint: 'Focus on the top-right corner of the front' },
+      { id: 'front-bl', label: 'Front Bottom Left', hint: 'Focus on the bottom-left corner of the front' },
+      { id: 'front-br', label: 'Front Bottom Right', hint: 'Focus on the bottom-right corner of the front' },
+      { id: 'back', label: 'Back', hint: 'Flip the card over - take a photo of the full back' },
+      { id: 'back-tl', label: 'Back Top Left', hint: 'Focus on the top-left corner of the back' },
+      { id: 'back-tr', label: 'Back Top Right', hint: 'Focus on the top-right corner of the back' },
+      { id: 'back-bl', label: 'Back Bottom Left', hint: 'Focus on the bottom-left corner of the back' },
+      { id: 'back-br', label: 'Back Bottom Right', hint: 'Focus on the bottom-right corner of the back' },
+    ];
+
+    let photos = new Array(10).fill(null);
+    let currentPhotoIndex = 0;
+    let stream = null;
+    let generatedImage = null;
+
+    function render() {
+      const app = document.getElementById('app');
+      const filledCount = photos.filter(p => p !== null).length;
+      
+      app.innerHTML = `
+        <div class="header">
+          <h1 class="title">Card Snap</h1>
+        </div>
+        
+        <div class="content">
+          ${filledCount === 0 ? `
+            <div class="start-section">
+              <button class="start-btn" onclick="startCapture()">📸 Start Capturing</button>
+              <p class="instructions">
+                Take 10 photos of your trading card:<br>
+                Front + 4 corners, Back + 4 corners
+              </p>
+            </div>
+          ` : `
+            <div class="progress-section">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${(filledCount / 10) * 100}%"></div>
+              </div>
+              <p class="progress-text">${filledCount} / 10 photos captured</p>
+            </div>
+          `}
+          
+          <div class="photo-grid">
+            ${photos.map((photo, i) => `
+              <div class="photo-slot ${photo ? 'filled' : ''}" onclick="retakePhoto(${i})">
+                ${photo ? `<img src="${photo}" alt="${PHOTO_TYPES[i].label}">` : ''}
+                <span class="slot-number">${i + 1}</span>
+                <span class="slot-label">${PHOTO_TYPES[i].label}</span>
+                ${photo ? `<button class="retake-btn" onclick="event.stopPropagation(); retakePhoto(${i})">↺</button>` : ''}
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="actions">
+            ${filledCount > 0 && filledCount < 10 ? `
+              <button class="btn btn-primary" onclick="continueCapture()">📸 Continue (${10 - filledCount} left)</button>
+            ` : ''}
+            
+            ${filledCount === 10 ? `
+              <button class="btn btn-primary" onclick="generateImage()" id="generate-btn">🎴 Combine All Photos</button>
+            ` : ''}
+            
+            ${generatedImage ? `
+              <button class="btn btn-success" onclick="downloadImage()">⬇️ Save to Photos</button>
+            ` : ''}
+            
+            ${filledCount > 0 ? `
+              <button class="btn btn-secondary" onclick="resetAll()">Start Over</button>
+            ` : ''}
+          </div>
+          
+          ${generatedImage ? `
+            <div class="result-section">
+              <h2 class="result-title">✨ Combined Image Ready!</h2>
+              <img src="${generatedImage}" alt="Combined card" class="result-image">
+              <p style="color: #8892b0; margin-top: 15px; font-size: 0.9rem;">
+                Long-press the image to save it
+              </p>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function startCapture() {
+      currentPhotoIndex = 0;
+      openCamera();
+    }
+
+    function continueCapture() {
+      currentPhotoIndex = photos.findIndex(p => p === null);
+      if (currentPhotoIndex === -1) currentPhotoIndex = 0;
+      openCamera();
+    }
+
+    function retakePhoto(index) {
+      currentPhotoIndex = index;
+      openCamera();
+    }
+
+    async function openCamera() {
+      const app = document.getElementById('app');
+      const photoType = PHOTO_TYPES[currentPhotoIndex];
+      
+      app.innerHTML = `
+        <div class="camera-container">
+          <div class="camera-header">
+            <div class="photo-prompt">${photoType.label}</div>
+            <div class="photo-count">Photo ${currentPhotoIndex + 1} of 10</div>
+            <div class="photo-hint">${photoType.hint}</div>
+          </div>
+          
+          <div class="camera-preview">
+            <video id="camera-video" autoplay playsinline></video>
+            <div class="camera-overlay">
+              ${photoType.id.includes('tl') ? '<div class="corner-guide corner-tl"></div>' : ''}
+              ${photoType.id.includes('tr') ? '<div class="corner-guide corner-tr"></div>' : ''}
+              ${photoType.id.includes('bl') ? '<div class="corner-guide corner-bl"></div>' : ''}
+              ${photoType.id.includes('br') ? '<div class="corner-guide corner-br"></div>' : ''}
+            </div>
+          </div>
+          
+          <div class="camera-controls">
+            <button class="cancel-btn" onclick="closeCamera()">Cancel</button>
+            <button class="capture-btn" onclick="capturePhoto()"></button>
+            <button class="skip-btn" onclick="skipPhoto()">Skip</button>
+          </div>
+        </div>
+      `;
+      
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        });
+        
+        const video = document.getElementById('camera-video');
+        video.srcObject = stream;
+      } catch (err) {
+        alert('Could not access camera. Please allow camera permissions.');
+        closeCamera();
+      }
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById('camera-video');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      
+      photos[currentPhotoIndex] = canvas.toDataURL('image/jpeg', 0.9);
+      generatedImage = null;
+      
+      // Move to next empty slot
+      const nextEmpty = photos.findIndex((p, i) => p === null && i > currentPhotoIndex);
+      
+      if (nextEmpty !== -1) {
+        currentPhotoIndex = nextEmpty;
+        // Re-render camera with new prompt
+        openCamera();
+      } else {
+        // Check if there are any empty slots before current
+        const anyEmpty = photos.findIndex(p => p === null);
+        if (anyEmpty !== -1) {
+          currentPhotoIndex = anyEmpty;
+          openCamera();
+        } else {
+          closeCamera();
+        }
+      }
+    }
+
+    function skipPhoto() {
+      const nextEmpty = photos.findIndex((p, i) => p === null && i > currentPhotoIndex);
+      
+      if (nextEmpty !== -1) {
+        currentPhotoIndex = nextEmpty;
+        openCamera();
+      } else {
+        closeCamera();
+      }
+    }
+
+    function closeCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      render();
+    }
+
+    async function generateImage() {
+      const btn = document.getElementById('generate-btn');
+      btn.innerHTML = '<span class="spinner"></span> Generating...';
+      btn.disabled = true;
+      
+      await new Promise(r => setTimeout(r, 100));
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      const cols = 5;
+      const rows = 2;
+      const cardWidth = 400;
+      const cardHeight = 560;
+      const padding = 20;
+      
+      canvas.width = cols * cardWidth + (cols + 1) * padding;
+      canvas.height = rows * cardHeight + (rows + 1) * padding;
+      
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      for (let i = 0; i < photos.length; i++) {
+        if (!photos[i]) continue;
+        
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = padding + col * (cardWidth + padding);
+        const y = padding + row * (cardHeight + padding);
+        
+        const img = new Image();
+        img.src = photos[i];
+        await new Promise(r => img.onload = r);
+        
+        const imgAspect = img.width / img.height;
+        const cardAspect = cardWidth / cardHeight;
+        
+        let drawWidth, drawHeight, drawX, drawY;
+        
+        if (imgAspect > cardAspect) {
+          drawHeight = cardHeight;
+          drawWidth = drawHeight * imgAspect;
+          drawX = x + (cardWidth - drawWidth) / 2;
+          drawY = y;
+        } else {
+          drawWidth = cardWidth;
+          drawHeight = drawWidth / imgAspect;
+          drawX = x;
+          drawY = y + (cardHeight - drawHeight) / 2;
+        }
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, cardWidth, cardHeight);
+        ctx.clip();
+        ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+        ctx.restore();
+        
+        ctx.strokeStyle = '#e94560';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, cardWidth, cardHeight);
+      }
+      
+      generatedImage = canvas.toDataURL('image/png', 1.0);
+      render();
+    }
+
+    function downloadImage() {
+      if (!generatedImage) return;
+      
+      const link = document.createElement('a');
+      link.download = `card-photos-${Date.now()}.png`;
+      link.href = generatedImage;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function resetAll() {
+      if (confirm('Clear all photos and start over?')) {
+        photos = new Array(10).fill(null);
+        generatedImage = null;
+        render();
+      }
+    }
+
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    // Initial render
+    render();
+  </script>
+</body>
+</html>
