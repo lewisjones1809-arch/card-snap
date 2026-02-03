@@ -657,7 +657,7 @@
         ctx.strokeRect(x, y, cardWidth, cardHeight);
       }
       
-      generatedImage = canvas.toDataURL('image/png', 1.0);
+      generatedImage = canvas.toDataURL('image/jpeg', 0.92);
       render();
     }
 
@@ -665,7 +665,7 @@
       if (!generatedImage) return;
       
       const link = document.createElement('a');
-      link.download = `card-photos-${Date.now()}.png`;
+      link.download = `card-photos-${Date.now()}.jpg`;
       link.href = generatedImage;
       document.body.appendChild(link);
       link.click();
